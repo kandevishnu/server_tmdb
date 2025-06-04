@@ -1,20 +1,30 @@
-const axios = require('axios');
+export default async function handler(req, res) {
+  // Allow requests from any origin (for development)
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-module.exports = async (req, res) => {
+  // Handle preflight requests (for CORS)
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   const { path, ...query } = req.query;
 
-  if (!path) return res.status(400).json({ error: 'Path is required' });
+  const queryString = new URLSearchParams(query).toString();
+  const fullUrl = `https://api.themoviedb.org/3/${path}?${queryString}`;
 
   try {
-    const response = await axios.get(`https://api.themoviedb.org/3/${path}`, {
-      params: query,
+    const tmdbRes = await fetch(fullUrl, {
       headers: {
         Authorization: `Bearer ${process.env.TMDB_API_TOKEN}`,
-        Accept: 'application/json',
+        accept: 'application/json',
       },
     });
-    res.status(200).json(response.data);
+
+    const data = await tmdbRes.json();
+    res.status(200).json(data);
   } catch (err) {
-    res.status(err.response?.status || 500).json({ error: err.message });
+    res.status(500).json({ error: "Failed to fetch TMDB data" });
   }
-};
+}
